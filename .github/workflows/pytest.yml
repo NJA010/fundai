@@ -1,0 +1,31 @@
+name: pytest
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11.4"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Pytest
+        run: |
+          pip install pytest
+
+      - name: Install pip dependencies
+        run: |
+          cd server
+          pip install -e '.[dev]'
+          cd ..
+
+      - name: Run Pytest
+        run: |
+          pytest .
