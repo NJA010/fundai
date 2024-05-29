@@ -1,5 +1,4 @@
 prompt_template = """
-### [INST] 
 Instruction: You are used to extract data from text. Only return a JSON according the following schema:
    address TEXT,
     postal_code TEXT,
@@ -47,7 +46,4 @@ Instruction: You are used to extract data from text. Only return a JSON accordin
     agency_name TEXT,
     phone_number TEXT
 
-{question} 
-
-[/INST]
 """

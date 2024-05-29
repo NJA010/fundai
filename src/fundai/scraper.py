@@ -1,11 +1,20 @@
+import json
 from typing import Sequence
 import nest_asyncio
+from langchain.chains.llm import LLMChain
 from langchain_community.document_loaders import AsyncChromiumLoader
 import logging
 import re
 
 from langchain_community.document_transformers import Html2TextTransformer
 from langchain_core.documents import Document
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from openai import OpenAI
+from psycopg2.extras import Json
+from psycopg2.extensions import register_adapter
+from fundai.db import DatabaseClient
+from fundai.utils import prompt_template
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +52,7 @@ class AsyncChromiumLoaderHeader(AsyncChromiumLoader):
 
 def post_process_pages(page: str, url: str) -> str:
     start = page.find("Bewaren")
-    end = page.find("##  Populariteit")
+    end = page.find("#### Wat is jouw huis waard?")
     if start == -1 or end == -1:
         logger.error("Start and end not found, returning original docs")
     else:
@@ -130,3 +139,50 @@ def get_all_links(home_type: str, area: str) -> set[str]:
         f"{len(fetched_links)} house links have been found on /{home_type}/{area}"
     )
     return fetched_links
+
+
+def obtain_schema_and_push(page: str, url: str, client, db: DatabaseClient):
+    """
+    Post process page contents, extract data schema using chain and insert into db
+    """
+    split_p = post_process_pages(page, url)
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",
+        messages=[
+            {"role": "system", "content": prompt_template},
+            {"role": "user", "content": split_p},
+        ],
+    )
+    logger.info(f"Tokens used: {completion.usage}")
+    schema_string = completion.choices[0].message.content
+    schema = json.loads(schema_string)
+
+    logger.info(f"Schema for {url} extracted")
+    insert_query = f"""
+         INSERT INTO raw_property_listings (url, raw_data) 
+         VALUES ('{url}', %s);
+     """
+    logger.info(f"Schema for {url} extracted")
+
+    with db.conn.cursor() as conn:
+        conn.execute(insert_query, [Json(schema)])
+    logger.info(f"Schema for {url} pushed")
+
+
+def apply_schema(home_type: str, area: str, db: DatabaseClient):
+    query = f"""
+       SELECT 
+           url
+           ,page_content
+       from raw_page_content 
+       WHERE url LIKE '%/{home_type}/{area}/%' 
+       """
+    pages = db.read(query)
+    prompt = PromptTemplate(
+        input_variables=["question"],
+        template=prompt_template,
+    )
+    # Create llm chain
+    client = OpenAI()
+    for p in pages:
+        obtain_schema_and_push(p[1], p[0], client, db)

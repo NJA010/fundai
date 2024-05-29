@@ -2,17 +2,11 @@ from datetime import datetime
 
 import pytz
 import typer
-from langchain.chains.llm import LLMChain
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import OpenAI
 from typing_extensions import Annotated
-from fundai.scraper import get_all_links, process_page, post_process_pages
+
+from fundai.scraper import get_all_links, process_page, apply_schema
 from fundai.db import init_search_urls, DatabaseClient, load_config
-from fundai.utils import prompt_template
 import logging
-from psycopg2.extras import Json, execute_values
-import json
 
 logging.basicConfig(level=logging.INFO)
 app = typer.Typer()
@@ -88,45 +82,13 @@ def scrape_house_pages(
     logger.info("Successfully inserted all page content")
 
 
-def obtain_schema_and_push(page: str, url: str, chain, db):
-
-    split_p = post_process_pages(page, url)
-    schema = chain.invoke(split_p)["text"]
-    print(schema)
-    insert_query = f"""
-         INSERT INTO raw_property_listings (url, raw_data) 
-         VALUES ('{url}', {Json(schema)});
-     """
-    logger.info(f"Schema for {url} extracted")
-
-    with db.conn.cursor() as conn:
-        conn.execute(insert_query)
-    logger.info(f"Schema for {url} pushed")
-
-
 @app.command()
 def structure_data(
     home_type: Annotated[str, typer.Argument()] = "koop",
     area: Annotated[str, typer.Argument()] = "rotterdam",
 ):
     db = DatabaseClient(load_config())
-    query = f"""
-       SELECT 
-           url
-           ,page_content
-       from raw_page_content 
-       WHERE url LIKE '%/{home_type}/{area}/%' 
-       """
-    pages = db.read(query)
-    prompt = PromptTemplate(
-        input_variables=["question"],
-        template=prompt_template,
-    )
-    # Create llm chain
-    llm_chain = LLMChain(llm=OpenAI(model="gpt-3.5-turbo-instruct"), prompt=prompt)
-    complete_chain = {"question": RunnablePassthrough()} | llm_chain
-    for p in pages:
-        obtain_schema_and_push(p[1], p[0], complete_chain, db)
+    apply_schema(home_type, area, db)
 
 
 @app.command()
@@ -135,7 +97,8 @@ def init_db():
     Initialze the databse
     :return:
     """
-    init_search_urls()
+    db = DatabaseClient(load_config())
+    init_search_urls(db)
     logger.info("Database initialized")
 
 

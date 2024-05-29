@@ -58,7 +58,7 @@ class DatabaseClient:
             return cur.fetchall()
 
 
-def init_search_urls():
+def init_search_urls(db: DatabaseClient):
     search_page_urls = """
     CREATE TABLE IF NOT EXISTS search_page_urls 
         (
@@ -133,7 +133,6 @@ def init_search_urls():
         FOREIGN KEY (url) REFERENCES search_page_urls(url)
     );
     """
-    db = DatabaseClient(load_config())
     db.init(raw_property_listings)
     logger.info("Created raw_property_listings table")
     db.init(house_data)
