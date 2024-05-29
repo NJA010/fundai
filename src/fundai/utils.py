@@ -1,0 +1,53 @@
+prompt_template = """
+### [INST] 
+Instruction: You are used to extract data from text. Only return a JSON according the following schema:
+   address TEXT,
+    postal_code TEXT,
+    city TEXT,
+    neighborhood TEXT,
+    living_area TEXT,
+    bedrooms INTEGER,
+    price TEXT,
+    price_per_m2 TEXT,
+    description TEXT,
+    asking_price TEXT,
+    asking_price_per_m2 TEXT,
+    status TEXT,
+    acceptance TEXT,
+    vve_contribution TEXT,
+    type_of_apartment TEXT,
+    type_of_construction TEXT,
+    year_of_construction INTEGER,
+    accessibility TEXT,
+    living_area_m2 TEXT,
+    volume TEXT,
+    number_of_rooms INTEGER,
+    number_of_bedrooms INTEGER,
+    number_of_bathrooms INTEGER,
+    bathroom_facilities TEXT,
+    number_of_floors INTEGER,
+    located_on TEXT,
+    facilities TEXT,
+    energy_label TEXT,
+    insulation TEXT,
+    heating TEXT,
+    hot_water TEXT,
+    boiler_brand TEXT,
+    boiler_type TEXT,
+    boiler_ownership TEXT,
+    cadastral_number TEXT,
+    ownership_status TEXT,
+    type_of_parking TEXT,
+    registered_with_chamber_of_commerce BOOLEAN,
+    annual_meeting BOOLEAN,
+    periodic_contribution BOOLEAN,
+    reserve_fund BOOLEAN,
+    maintenance_plan BOOLEAN,
+    building_insurance BOOLEAN,
+    agency_name TEXT,
+    phone_number TEXT
+
+{question} 
+
+[/INST]
+"""

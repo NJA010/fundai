@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "fundai"
+version = "0.1.0"
+description = ""
+authors = ["Niels Janssen <n.janssen1@portofrotterdam.com>"]
+readme = "README.md"
+packages = [{include = "fundai", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+jupyterlab = "^4.2.0"
+langchain = "^0.1.17"
+python-dotenv = "^1.0.1"
+playwright = "^1.43.0"
+geopy = "^2.4.1"
+html2text = "^2024.2.26"
+openai = "^1.26.0"
+langchain-openai = "^0.1.6"
+setuptools = "^69.5.1"
+typer = "^0.12.3"
+psycopg2-binary = "^2.9.9"
+pytz = "^2024.1"
+
+
+mock = "^5.1.0"
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+
+pytest = "^8.2.1"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+fundai = 'fundai.main:app'
