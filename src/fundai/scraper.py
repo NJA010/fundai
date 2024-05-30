@@ -1,5 +1,5 @@
 import json
-from typing import Sequence
+from typing import Sequence, Any
 import nest_asyncio
 from langchain.chains.llm import LLMChain
 from langchain_community.document_loaders import AsyncChromiumLoader
@@ -141,48 +141,71 @@ def get_all_links(home_type: str, area: str) -> set[str]:
     return fetched_links
 
 
-def obtain_schema_and_push(page: str, url: str, client, db: DatabaseClient):
-    """
-    Post process page contents, extract data schema using chain and insert into db
-    """
-    split_p = post_process_pages(page, url)
+def obtain_schema_openai(page_content: str, url: str, client) -> dict[str, Any]:
+
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo-1106",
         messages=[
             {"role": "system", "content": prompt_template},
-            {"role": "user", "content": split_p},
+            {"role": "user", "content": page_content},
         ],
     )
     logger.info(f"Tokens used: {completion.usage}")
     schema_string = completion.choices[0].message.content
-    schema = json.loads(schema_string)
+    schema_string = (
+        schema_string.replace("```json", "")
+        .replace("```", "")
+        .replace('"\n ', '",\n ')
+        .replace("\n", "")
+    )
+    try:
+        # fix erroneous JSON format
+        schema = json.loads(schema_string)
+    except Exception as err:
+        print(schema_string[:5])
+        print(schema_string[-5:])
+        print(schema_string)
+
+        raise err
 
     logger.info(f"Schema for {url} extracted")
+    return schema
+
+
+def obtain_schema_and_push(page: str, url: str, db: DatabaseClient, *args, **kwargs):
+    """
+    Post process page contents, extract data schema using chain and insert into db
+    """
+    split_p = post_process_pages(page, url)
+    i = 0
+    while i < 10:
+        try:
+            schema = obtain_schema_openai(split_p, url, *args, **kwargs)
+            i = 11
+        except Exception as err:
+            logger.error(f"Parsing data schema failed, retry number: {i}", err)
+            i += 1
     insert_query = f"""
          INSERT INTO raw_property_listings (url, raw_data) 
          VALUES ('{url}', %s);
      """
-    logger.info(f"Schema for {url} extracted")
 
     with db.conn.cursor() as conn:
         conn.execute(insert_query, [Json(schema)])
-    logger.info(f"Schema for {url} pushed")
+    logger.info(f"Schema for {url} pushed successfully")
 
 
-def apply_schema(home_type: str, area: str, db: DatabaseClient):
+def parse_schema(home_type: str, area: str, db: DatabaseClient):
     query = f"""
        SELECT 
            url
            ,page_content
        from raw_page_content 
-       WHERE url LIKE '%/{home_type}/{area}/%' 
+       WHERE url LIKE '%/{home_type}/{area}/%' AND url NOT in (SELECT url FROM raw_property_listings)
        """
     pages = db.read(query)
-    prompt = PromptTemplate(
-        input_variables=["question"],
-        template=prompt_template,
-    )
-    # Create llm chain
+    logger.info(f"Will try to parse {len(pages)} pages")
+    # Create llm client
     client = OpenAI()
     for p in pages:
-        obtain_schema_and_push(p[1], p[0], client, db)
+        obtain_schema_and_push(p[1], p[0], db, client)

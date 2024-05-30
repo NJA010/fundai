@@ -4,7 +4,7 @@ import pytz
 import typer
 from typing_extensions import Annotated
 
-from fundai.scraper import get_all_links, process_page, apply_schema
+from fundai.scraper import get_all_links, process_page, parse_schema
 from fundai.db import init_search_urls, DatabaseClient, load_config
 import logging
 
@@ -83,12 +83,12 @@ def scrape_house_pages(
 
 
 @app.command()
-def structure_data(
+def parse_house_pages(
     home_type: Annotated[str, typer.Argument()] = "koop",
     area: Annotated[str, typer.Argument()] = "rotterdam",
 ):
     db = DatabaseClient(load_config())
-    apply_schema(home_type, area, db)
+    parse_schema(home_type, area, db)
 
 
 @app.command()
