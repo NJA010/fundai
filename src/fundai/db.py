@@ -1,5 +1,7 @@
 from datetime import datetime
 from configparser import ConfigParser
+
+import pandas as pd
 import pytz
 import psycopg2
 from psycopg2.extras import Json, execute_values
@@ -57,6 +59,14 @@ class DatabaseClient:
             cur.execute(query)
             return cur.fetchall()
 
+    def read_df(self, query: str) -> pd.DataFrame:
+        with self.conn.cursor() as cur:
+            cur.execute(query)
+            df = pd.DataFrame(
+                data=cur.fetchall(), columns=[c.name for c in cur.description]
+            )
+        return df
+
     def execute(self, query: str):
         with self.conn.cursor() as cur:
             cur.execute(query)
@@ -80,8 +90,9 @@ def init_search_urls(db: DatabaseClient):
         )
     """
     house_data = """
-    CREATE TABLE IF NOT EXISTS property_listings (
+    CREATE VIEW property_listings (
     id SERIAL PRIMARY KEY,
+    url TEXT,
     address TEXT,
     postal_code TEXT,
     city TEXT,
@@ -149,8 +160,10 @@ def init_search_urls(db: DatabaseClient):
 
 def create_property_listings(db: DatabaseClient):
     query = """
-    INSERT INTO property_listings
+    CREATE OR REPLACE VIEW property_listing AS 
     SELECT 
+        id,
+        url,
         raw_data->>'address' AS address,
         raw_data->>'postal_code' AS postal_code,
         raw_data->>'city' AS city,
@@ -199,3 +212,24 @@ def create_property_listings(db: DatabaseClient):
     FROM raw_property_listings 
     """
     db.execute(query)
+
+
+def clean_raw_propert_listings(db: DatabaseClient):
+    """
+    Manually clean up erroneous parsing
+    :param db:
+    :return:
+    """
+    delete_parkingspots = """
+    delete from raw_property_listings
+    where raw_property_listings.url like '%parkeergelegenheid%'
+    """
+    db.execute(delete_parkingspots)
+
+    parse_mistake = """
+    UPDATE raw_property_listings
+    SET
+        raw_data = REPLACE(raw_data::text, 'Voor 1906', '1906')::jsonb
+    WHERE raw_property_listings.raw_data->>'year_of_construction' like '%Voor 1906%' 
+    """
+    db.execute(parse_mistake)

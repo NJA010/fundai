@@ -1,11 +1,8 @@
-import json
+import streamlit as st
+import plotly.express as px
+import pandas as pd
+from fundai import DatabaseClient, load_config
 
-
-def run():
-    with open("./tests/raw_data.txt", "r") as f:
-        page = f.read()
-    print(json.loads(page))
-
-
-if __name__ == "__main__":
-    run()
+db = DatabaseClient(load_config())
+df = db.read_df("select * from property_listing")
+print(df)

@@ -5,7 +5,13 @@ import typer
 from typing_extensions import Annotated
 
 from fundai.scraper import get_all_links, process_page, parse_schema
-from fundai.db import init_search_urls, DatabaseClient, load_config
+from fundai.db import (
+    init_search_urls,
+    DatabaseClient,
+    load_config,
+    create_property_listings,
+    clean_raw_propert_listings,
+)
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -89,6 +95,13 @@ def parse_house_pages(
 ):
     db = DatabaseClient(load_config())
     parse_schema(home_type, area, db)
+
+
+@app.command()
+def load_property_listing_view():
+    db = DatabaseClient(load_config())
+    clean_raw_propert_listings(db)
+    create_property_listings(db)
 
 
 @app.command()

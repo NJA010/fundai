@@ -76,7 +76,8 @@ def get_max_page(page: str) -> int:
             n_pages_int.append(int(p))
         except ValueError:
             continue
-
+    if len(n_pages_int) == 0:
+        raise ValueError("No maximum page found")
     return max(n_pages_int)
 
 
